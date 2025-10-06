@@ -1,4 +1,4 @@
-.PHONY: lint test
+.PHONY: lint test release-patch release-minor release-major
 
 lint:
 	uv run ruff format .
@@ -7,3 +7,12 @@ lint:
 
 test:
 	uv run pytest -s -vvv tests/
+
+release-patch:
+	./release.sh patch
+
+release-minor:
+	./release.sh minor
+
+release-major:
+	./release.sh major
