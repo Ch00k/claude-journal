@@ -9,7 +9,7 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-from claude_journal.git_ops import git_commit, git_pull, git_push
+from claude_journal.git import git_commit, git_pull, git_push
 from claude_journal.journal import (
     append_entry,
     get_journals_dir,

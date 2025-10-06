@@ -5,7 +5,7 @@ from pathlib import Path
 
 import git
 
-from claude_journal.git_ops import get_git_repo, git_commit, git_pull, git_push, is_remote_configured
+from claude_journal.git import get_git_repo, git_commit, git_pull, git_push, is_remote_configured
 
 
 def test_get_git_repo_returns_none_for_non_git_directory(tmp_path: Path) -> None:
