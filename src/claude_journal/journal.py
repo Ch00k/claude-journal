@@ -1,0 +1,97 @@
+# ABOUTME: Core journal operations including directory management, entry formatting,
+# ABOUTME: and journal file read/write operations.
+
+import json
+import secrets
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import cast
+
+
+def get_journals_dir() -> Path:
+    """Return the path to the journals directory (~/.claude/journal/)."""
+    return Path.home() / ".claude" / "journal"
+
+
+def ensure_journals_dir(path: Path) -> None:
+    """Create the journals directory if it doesn't exist."""
+    path.mkdir(parents=True, exist_ok=True)
+
+
+def format_entry(content: str, entry_type: str, timestamp: datetime) -> str:
+    """Format a journal entry with markdown header."""
+    timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    return f"## [{timestamp_str}] {entry_type}\n\n{content}\n\n---\n"
+
+
+def append_entry(journal_path: Path, content: str, entry_type: str) -> None:
+    """Append a formatted entry to the journal file."""
+    timestamp = datetime.now(tz=UTC)
+    formatted_entry = format_entry(content, entry_type, timestamp)
+
+    with journal_path.open("a") as f:
+        f.write(formatted_entry)
+
+
+def read_journal(journal_path: Path) -> str:
+    """Read and return the entire journal file contents."""
+    if not journal_path.exists():
+        return ""
+    return journal_path.read_text()
+
+
+def generate_project_id() -> str:
+    """Generate an 8-character hex ID."""
+    return secrets.token_hex(4)
+
+
+def get_project_config_path(cwd: Path) -> Path:
+    """Return the path to .claude/journal.json in the given directory."""
+    return cwd / ".claude" / "journal.json"
+
+
+def read_project_id(cwd: Path) -> str | None:
+    """Read the project ID from .claude/journal.json, or None if it doesn't exist."""
+    config_path = get_project_config_path(cwd)
+    if not config_path.exists():
+        return None
+
+    data = json.loads(config_path.read_text())
+    return cast("str", data["id"])
+
+
+def write_project_id(cwd: Path, project_id: str) -> None:
+    """Create .claude directory and write project ID to journal.json."""
+    config_path = get_project_config_path(cwd)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    data = {"id": project_id}
+    config_path.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def get_or_create_project_id(cwd: Path) -> str:
+    """Get existing project ID or create a new one."""
+    existing_id = read_project_id(cwd)
+    if existing_id is not None:
+        return existing_id
+
+    new_id = generate_project_id()
+    write_project_id(cwd, new_id)
+    return new_id
+
+
+def get_project_journal_path(project_id: str) -> Path:
+    """Return the path to the journal file for a given project ID."""
+    return get_journals_dir() / project_id / "journal.md"
+
+
+def resolve_journal_path(scope: str, cwd: Path) -> Path:
+    """Resolve the journal path based on scope and ensure parent directories exist."""
+    if scope == "global":
+        journal_path = get_journals_dir() / "global" / "journal.md"
+    else:
+        project_id = get_or_create_project_id(cwd)
+        journal_path = get_project_journal_path(project_id)
+
+    journal_path.parent.mkdir(parents=True, exist_ok=True)
+    return journal_path
