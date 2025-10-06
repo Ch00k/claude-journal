@@ -19,7 +19,7 @@ def ensure_journals_dir(path: Path) -> None:
 
 def format_entry(content: str, entry_type: str, timestamp: datetime) -> str:
     """Format a journal entry with markdown header."""
-    timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S UTC")
     return f"## [{timestamp_str}] {entry_type}\n\n{content}\n\n---\n"
 
 
