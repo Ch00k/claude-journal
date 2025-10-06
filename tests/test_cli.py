@@ -6,7 +6,7 @@ from pathlib import Path
 import git
 import pytest
 
-from claude_journal.cli import init_command
+from claude_journal.cli import clone_command, init_command
 
 
 def test_init_command_creates_journal_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -95,3 +95,54 @@ def test_init_command_without_remote(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert result is True
     repo = git.Repo(journal_dir)
     assert len(repo.remotes) == 0
+
+
+def test_clone_command_clones_from_remote(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that clone_command clones journals from remote repository."""
+    # Create a "remote" repository with some content
+    remote_dir = tmp_path / "remote"
+    remote_dir.mkdir()
+    remote_repo = git.Repo.init(remote_dir)
+    remote_repo.config_writer().set_value("user", "name", "Test").release()
+    remote_repo.config_writer().set_value("user", "email", "test@test.com").release()
+
+    # Create some journal content in the remote
+    global_journal = remote_dir / "global" / "journal.md"
+    global_journal.parent.mkdir(parents=True)
+    global_journal.write_text("# Test journal entry\n")
+
+    project_journal = remote_dir / "abc123" / "journal.md"
+    project_journal.parent.mkdir(parents=True)
+    project_journal.write_text("# Project journal entry\n")
+
+    remote_repo.index.add(["global/journal.md", "abc123/journal.md"])
+    remote_repo.index.commit("Add journal entries")
+
+    # Now test cloning to local directory
+    journal_dir = tmp_path / "journal"
+    monkeypatch.setattr("claude_journal.cli.get_journals_dir", lambda: journal_dir)
+
+    result = clone_command(str(remote_dir))
+
+    assert result is True
+    assert journal_dir.exists()
+    assert (journal_dir / "global" / "journal.md").exists()
+    assert (journal_dir / "abc123" / "journal.md").exists()
+    assert (journal_dir / "global" / "journal.md").read_text() == "# Test journal entry\n"
+    assert (journal_dir / "abc123" / "journal.md").read_text() == "# Project journal entry\n"
+
+    # Verify it's a git repo with remote configured
+    repo = git.Repo(journal_dir)
+    assert "origin" in [r.name for r in repo.remotes]
+    assert repo.remote("origin").url == str(remote_dir)
+
+
+def test_clone_command_fails_if_directory_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that clone_command returns False if journal directory already exists."""
+    journal_dir = tmp_path / "journal"
+    journal_dir.mkdir(parents=True)
+    monkeypatch.setattr("claude_journal.cli.get_journals_dir", lambda: journal_dir)
+
+    result = clone_command("https://example.com/repo.git")
+
+    assert result is False

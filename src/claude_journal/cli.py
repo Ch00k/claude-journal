@@ -51,6 +51,28 @@ def init_command(remote_url: str | None) -> bool:
     return True
 
 
+def clone_command(remote_url: str) -> bool:
+    """Clone existing journal repository from remote."""
+    journal_dir = get_journals_dir()
+
+    if journal_dir.exists():
+        print(f"Error: Journal directory already exists at {journal_dir}", file=sys.stderr)
+        return False
+
+    print(f"Cloning journal repository from {remote_url}")
+    try:
+        repo = git.Repo.clone_from(remote_url, journal_dir)
+    except git.GitCommandError as e:
+        print(f"Error: Failed to clone repository: {e}", file=sys.stderr)
+        return False
+
+    repo.config_writer().set_value("user", "name", "Claude Journal").release()
+    repo.config_writer().set_value("user", "email", "journal@claude.local").release()
+
+    print("Journal repository cloned successfully")
+    return True
+
+
 def main() -> None:
     """Main entry point for claude-journal CLI."""
     parser = argparse.ArgumentParser(description="Claude Journal - Journaling for Claude Code")
@@ -60,10 +82,17 @@ def main() -> None:
     init_parser = subparsers.add_parser("init", help="Initialize the journal repository")
     init_parser.add_argument("--remote", type=str, help="Git remote URL (optional)")
 
+    # Clone command
+    clone_parser = subparsers.add_parser("clone", help="Clone existing journal repository from remote")
+    clone_parser.add_argument("remote_url", type=str, help="Git remote URL to clone from")
+
     args = parser.parse_args()
 
     if args.command == "init":
         success = init_command(args.remote)
+        sys.exit(0 if success else 1)
+    elif args.command == "clone":
+        success = clone_command(args.remote_url)
         sys.exit(0 if success else 1)
     elif args.command is None:
         # No command provided - run MCP server
