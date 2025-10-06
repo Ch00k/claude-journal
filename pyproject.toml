@@ -1,6 +1,6 @@
 [project]
 name = "claude-journal"
-version = "0.0.1"
+version = "0.0.2"
 description = "MCP server that provides journaling capabilities for Claude Code"
 authors = [{name = "Andrii Yurchuk", email = "ay@mntw.re"}]
 license = {file = "LICENSE"}
