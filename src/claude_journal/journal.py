@@ -5,7 +5,6 @@ import json
 import secrets
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
 
 
 def get_journals_dir() -> Path:
@@ -56,8 +55,27 @@ def read_project_id(cwd: Path) -> str | None:
     if not config_path.exists():
         return None
 
-    data = json.loads(config_path.read_text())
-    return cast("str", data["id"])
+    try:
+        content = config_path.read_text()
+        data = json.loads(content)
+
+        if not isinstance(data, dict):
+            msg = f"Invalid journal.json format: expected object, got {type(data).__name__}"
+            raise TypeError(msg)
+
+        if "id" not in data:
+            msg = "Invalid journal.json format: missing 'id' field"
+            raise ValueError(msg)
+
+        project_id = data["id"]
+        if not isinstance(project_id, str) or not project_id:
+            msg = f"Invalid journal.json format: 'id' must be a non-empty string, got {type(project_id).__name__}"
+            raise ValueError(msg)
+
+        return project_id
+    except json.JSONDecodeError as e:
+        msg = f"Corrupted journal.json at {config_path}: {e}. Please delete the file or fix the JSON syntax."
+        raise ValueError(msg) from e
 
 
 def write_project_id(cwd: Path, project_id: str) -> None:
@@ -69,15 +87,15 @@ def write_project_id(cwd: Path, project_id: str) -> None:
     config_path.write_text(json.dumps(data, indent=2) + "\n")
 
 
-def get_or_create_project_id(cwd: Path) -> str:
-    """Get existing project ID or create a new one."""
+def get_or_create_project_id(cwd: Path) -> tuple[str, bool]:
+    """Get existing project ID or create a new one. Returns (id, is_new)."""
     existing_id = read_project_id(cwd)
     if existing_id is not None:
-        return existing_id
+        return existing_id, False
 
     new_id = generate_project_id()
     write_project_id(cwd, new_id)
-    return new_id
+    return new_id, True
 
 
 def get_project_journal_path(project_id: str) -> Path:
@@ -85,13 +103,14 @@ def get_project_journal_path(project_id: str) -> Path:
     return get_journals_dir() / project_id / "journal.md"
 
 
-def resolve_journal_path(scope: str, cwd: Path) -> Path:
-    """Resolve the journal path based on scope and ensure parent directories exist."""
+def resolve_journal_path(scope: str, cwd: Path) -> tuple[Path, bool]:
+    """Resolve the journal path based on scope and ensure parent directories exist. Returns (path, is_new_project)."""
+    is_new_project = False
     if scope == "global":
         journal_path = get_journals_dir() / "global" / "journal.md"
     else:
-        project_id = get_or_create_project_id(cwd)
+        project_id, is_new_project = get_or_create_project_id(cwd)
         journal_path = get_project_journal_path(project_id)
 
     journal_path.parent.mkdir(parents=True, exist_ok=True)
-    return journal_path
+    return journal_path, is_new_project

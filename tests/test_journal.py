@@ -197,10 +197,11 @@ def test_write_project_id_creates_valid_json(tmp_path: Path) -> None:
 
 def test_get_or_create_project_id_creates_new_id(tmp_path: Path) -> None:
     """Test that get_or_create_project_id creates a new ID if none exists."""
-    result = get_or_create_project_id(tmp_path)
+    result, is_new = get_or_create_project_id(tmp_path)
 
     assert len(result) == 8
     assert all(c in "0123456789abcdef" for c in result)
+    assert is_new is True
 
     config_file = tmp_path / ".claude" / "journal.json"
     assert config_file.exists()
@@ -213,9 +214,10 @@ def test_get_or_create_project_id_returns_existing_id(tmp_path: Path) -> None:
     config_file = config_dir / "journal.json"
     config_file.write_text('{"id": "existing1"}')
 
-    result = get_or_create_project_id(tmp_path)
+    result, is_new = get_or_create_project_id(tmp_path)
 
     assert result == "existing1"
+    assert is_new is False
 
 
 def test_get_project_journal_path_returns_correct_path() -> None:
@@ -233,10 +235,11 @@ def test_resolve_journal_path_global_scope(tmp_path: Path, monkeypatch: pytest.M
     journal_dir = tmp_path / "journal"
     monkeypatch.setattr("claude_journal.journal.get_journals_dir", lambda: journal_dir)
 
-    result = resolve_journal_path("global", Path.cwd())
+    result, is_new = resolve_journal_path("global", Path.cwd())
 
     expected = journal_dir / "global" / "journal.md"
     assert result == expected
+    assert is_new is False
     assert result.parent.exists()
     assert result.parent.is_dir()
 
@@ -246,13 +249,14 @@ def test_resolve_journal_path_project_scope_creates_new_id(tmp_path: Path, monke
     journal_dir = tmp_path / "journal"
     monkeypatch.setattr("claude_journal.journal.get_journals_dir", lambda: journal_dir)
 
-    result = resolve_journal_path("project", tmp_path)
+    result, is_new = resolve_journal_path("project", tmp_path)
 
     config_file = tmp_path / ".claude" / "journal.json"
     assert config_file.exists()
 
     assert result.parent.parent == journal_dir
     assert result.name == "journal.md"
+    assert is_new is True
 
 
 def test_resolve_journal_path_project_scope_uses_existing_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -265,10 +269,11 @@ def test_resolve_journal_path_project_scope_uses_existing_id(tmp_path: Path, mon
     config_file = config_dir / "journal.json"
     config_file.write_text('{"id": "existing1"}')
 
-    result = resolve_journal_path("project", tmp_path)
+    result, is_new = resolve_journal_path("project", tmp_path)
 
     expected = journal_dir / "existing1" / "journal.md"
     assert result == expected
+    assert is_new is False
 
 
 def test_resolve_journal_path_project_scope_creates_parent_directory(
@@ -278,7 +283,7 @@ def test_resolve_journal_path_project_scope_creates_parent_directory(
     journal_dir = tmp_path / "journal"
     monkeypatch.setattr("claude_journal.journal.get_journals_dir", lambda: journal_dir)
 
-    result = resolve_journal_path("project", tmp_path)
+    result, _ = resolve_journal_path("project", tmp_path)
 
     assert result.parent.exists()
     assert result.parent.is_dir()

@@ -90,7 +90,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     raise ValueError(msg)
 
 
-async def handle_journal_write(arguments: dict) -> list[TextContent]:
+async def handle_journal_write(arguments: dict) -> list[TextContent]:  # noqa: PLR0911
     """Handle JournalWrite tool call."""
     content = arguments["content"]
     entry_type = arguments["type"]
@@ -99,19 +99,42 @@ async def handle_journal_write(arguments: dict) -> list[TextContent]:
     cwd = Path.cwd()
     journals_dir = get_journals_dir()
 
-    # Pull from git if remote configured
-    pull_success, pull_msg = git_pull(journals_dir)
-    if not pull_success:
+    # Check if journals directory exists
+    if not journals_dir.exists():
         return [
             TextContent(
                 type="text",
-                text=f"Warning: {pull_msg}",
+                text=(
+                    f"Error: Journal directory not found at {journals_dir}. "
+                    "Please run 'claude-journal init' to initialize the journal repository."
+                ),
+            )
+        ]
+
+    # Pull from git if remote configured
+    pull_success, pull_msg = git_pull(journals_dir)
+    if not pull_success and "Not a git repository" in pull_msg:
+        return [
+            TextContent(
+                type="text",
+                text=(
+                    f"Error: {journals_dir} is not a git repository. "
+                    "Please run 'claude-journal init' to initialize the journal repository."
+                ),
             )
         ]
 
     # Resolve journal path and append entry
-    journal_path = resolve_journal_path(scope, cwd)
-    append_entry(journal_path, content, entry_type)
+    try:
+        journal_path, is_new_project = resolve_journal_path(scope, cwd)
+        append_entry(journal_path, content, entry_type)
+    except (OSError, ValueError, TypeError) as e:
+        return [
+            TextContent(
+                type="text",
+                text=f"Error: Failed to write journal entry: {e}",
+            )
+        ]
 
     # Commit to git
     commit_msg = f"[{scope}] {entry_type}: {content[:50]}"
@@ -120,29 +143,48 @@ async def handle_journal_write(arguments: dict) -> list[TextContent]:
         return [
             TextContent(
                 type="text",
-                text=f"Entry written but commit failed: {commit_msg_result}",
+                text=f"Entry written to {journal_path} but commit failed: {commit_msg_result}",
             )
         ]
 
     # Push to git if remote configured
     push_success, push_msg = git_push(journals_dir)
-    if not push_success:
+    if not push_success and "skipping push" not in push_msg:
         return [
             TextContent(
                 type="text",
-                text=f"Entry written and committed, but push failed: {push_msg}",
+                text=(
+                    f"Entry written and committed locally, but push failed: {push_msg}. "
+                    "The entry is saved and will be pushed on the next successful operation."
+                ),
+            )
+        ]
+
+    # Determine scope label for output
+    scope_label = "global journal" if scope == "global" else f"project journal ({journal_path.parent.name})"
+
+    # Add new project notification
+    if is_new_project and scope == "project":
+        config_path = cwd / ".claude" / "journal.json"
+        return [
+            TextContent(
+                type="text",
+                text=(
+                    f"Created new project journal (ID: {journal_path.parent.name}) "
+                    f"and saved to {config_path}. Journal entry written to {scope_label}"
+                ),
             )
         ]
 
     return [
         TextContent(
             type="text",
-            text=f"Journal entry written to {journal_path}",
+            text=f"Journal entry written to {scope_label}",
         )
     ]
 
 
-async def handle_journal_search(arguments: dict) -> list[TextContent]:
+async def handle_journal_search(arguments: dict) -> list[TextContent]:  # noqa: PLR0912
     """Handle JournalSearch tool call."""
     query = arguments["query"]
     scope = arguments.get("scope", "both")
@@ -150,6 +192,18 @@ async def handle_journal_search(arguments: dict) -> list[TextContent]:
 
     cwd = Path.cwd()
     journals_dir = get_journals_dir()
+
+    # Check if journals directory exists
+    if not journals_dir.exists():
+        return [
+            TextContent(
+                type="text",
+                text=(
+                    f"Error: Journal directory not found at {journals_dir}. "
+                    "Please run 'claude-journal init' to initialize the journal repository."
+                ),
+            )
+        ]
 
     # Pull from git if remote configured
     git_pull(journals_dir)
@@ -159,12 +213,31 @@ async def handle_journal_search(arguments: dict) -> list[TextContent]:
     if scope in ("global", "both"):
         journals_to_search.append(journals_dir / "global" / "journal.md")
     if scope in ("project", "both"):
-        project_id = get_or_create_project_id(cwd)
-        journals_to_search.append(get_project_journal_path(project_id))
+        try:
+            project_id, _ = get_or_create_project_id(cwd)
+            journals_to_search.append(get_project_journal_path(project_id))
+        except (OSError, ValueError, TypeError) as e:
+            return [
+                TextContent(
+                    type="text",
+                    text=f"Error: Failed to access project journal: {e}",
+                )
+            ]
 
-    # Search journals
+    # Validate regex pattern
+    try:
+        pattern = re.compile(query, re.IGNORECASE)
+    except re.error as e:
+        return [
+            TextContent(
+                type="text",
+                text=f"Error: Invalid regex pattern '{query}': {e}",
+            )
+        ]
+
+    # Search journals with result limit to handle large files
+    max_results = 200
     results = []
-    pattern = re.compile(query, re.IGNORECASE)
 
     for journal_path in journals_to_search:
         content = read_journal(journal_path)
@@ -190,18 +263,39 @@ async def handle_journal_search(arguments: dict) -> list[TextContent]:
 
             results.append(entry.strip())
 
+            # Limit results to prevent overwhelming output
+            if len(results) >= max_results:
+                break
+
+        if len(results) >= max_results:
+            break
+
     if not results:
+        search_scope = "global and project journals" if scope == "both" else f"{scope} journal"
+        type_filter = f" with type '{entry_type}'" if entry_type else ""
         return [
             TextContent(
                 type="text",
-                text="No matching journal entries found",
+                text=f"No matching journal entries found in {search_scope}{type_filter} for query: {query}",
             )
         ]
+
+    # Sort results by timestamp (newest first)
+    def extract_timestamp(entry: str) -> str:
+        match = re.search(r"## \[(.*?)\]", entry)
+        return match.group(1) if match else ""
+
+    results.sort(key=extract_timestamp, reverse=True)
+
+    result_text = f"Found {len(results)} matching entries"
+    if len(results) >= max_results:
+        result_text += f" (limited to {max_results} most recent)"
+    result_text += ":\n\n" + "\n\n---\n\n".join(results)
 
     return [
         TextContent(
             type="text",
-            text="\n\n---\n\n".join(results),
+            text=result_text,
         )
     ]
 
