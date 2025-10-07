@@ -36,7 +36,7 @@ uv tool install claude-journal
 Add to Claude Code:
 
 ```bash
-claude mcp add journal claude-journal
+claude mcp add --scope user journal claude-journal
 ```
 
 ## Setup
