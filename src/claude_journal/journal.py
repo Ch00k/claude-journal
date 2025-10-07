@@ -19,17 +19,24 @@ def ensure_journals_dir(path: Path) -> None:
 
 def format_entry(content: str, entry_type: str, timestamp: datetime) -> str:
     """Format a journal entry with markdown header."""
-    timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M:%S UTC")
+    timestamp_str = timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
     return f"## [{timestamp_str}] {entry_type}\n\n{content}\n\n---\n"
 
 
 def append_entry(journal_path: Path, content: str, entry_type: str) -> None:
-    """Append a formatted entry to the journal file."""
+    """Append a formatted entry to the journal file and update the search index."""
+    from claude_journal.index import add_entry_to_index, ensure_index
+
     timestamp = datetime.now(tz=UTC)
     formatted_entry = format_entry(content, entry_type, timestamp)
 
     with journal_path.open("a") as f:
         f.write(formatted_entry)
+
+    # Update search index
+    index_path = ensure_index(journal_path)
+    timestamp_str = timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+    add_entry_to_index(index_path, timestamp_str, entry_type, formatted_entry.strip())
 
 
 def read_journal(journal_path: Path) -> str:

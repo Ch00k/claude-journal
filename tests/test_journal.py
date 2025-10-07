@@ -62,7 +62,7 @@ def test_format_entry_creates_correct_format() -> None:
 
     result = format_entry(content, entry_type, timestamp)
 
-    expected = "## [2025-10-06 14:30:45 UTC] insight\n\nThis is a test entry.\nWith multiple lines.\n\n---\n"
+    expected = "## [2025-10-06T14:30:45Z] insight\n\nThis is a test entry.\nWith multiple lines.\n\n---\n"
     assert result == expected
 
 
@@ -74,7 +74,7 @@ def test_format_entry_handles_single_line_content() -> None:
 
     result = format_entry(content, entry_type, timestamp)
 
-    expected = "## [2025-01-01 00:00:00 UTC] decision\n\nSingle line entry\n\n---\n"
+    expected = "## [2025-01-01T00:00:00Z] decision\n\nSingle line entry\n\n---\n"
     assert result == expected
 
 
@@ -112,7 +112,7 @@ def test_append_entry_appends_to_existing_file(tmp_path: Path) -> None:
 def test_read_journal_returns_file_contents(tmp_path: Path) -> None:
     """Test that read_journal returns the entire journal file contents."""
     journal_path = tmp_path / "journal.md"
-    expected_content = "## [2025-10-06 14:30:00 UTC] insight\n\nTest entry\n\n---\n"
+    expected_content = "## [2025-10-06T14:30:00Z] insight\n\nTest entry\n\n---\n"
     journal_path.write_text(expected_content)
 
     result = read_journal(journal_path)

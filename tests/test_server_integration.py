@@ -87,10 +87,10 @@ async def test_journal_search_finds_entries(tmp_path: Path, monkeypatch: pytest.
     global_journal = journal_dir / "global" / "journal.md"
     global_journal.parent.mkdir(parents=True)
     global_journal.write_text(
-        "## [2025-10-06 14:30:00] insight\n\n"
+        "## [2025-10-06T14:30:00Z] insight\n\n"
         "This is a test entry about authentication.\n\n"
         "---\n"
-        "## [2025-10-06 15:00:00] decision\n\n"
+        "## [2025-10-06T15:00:00Z] decision\n\n"
         "Chose PostgreSQL for the database.\n\n"
         "---\n"
     )
@@ -113,10 +113,10 @@ async def test_journal_search_filters_by_type(tmp_path: Path, monkeypatch: pytes
     global_journal = journal_dir / "global" / "journal.md"
     global_journal.parent.mkdir(parents=True)
     global_journal.write_text(
-        "## [2025-10-06 14:30:00] insight\n\n"
+        "## [2025-10-06T14:30:00Z] insight\n\n"
         "This is an insight entry.\n\n"
         "---\n"
-        "## [2025-10-06 15:00:00] decision\n\n"
+        "## [2025-10-06T15:00:00Z] decision\n\n"
         "This is a decision entry.\n\n"
         "---\n"
     )
@@ -138,7 +138,7 @@ async def test_journal_search_no_results(tmp_path: Path, monkeypatch: pytest.Mon
     journal_dir = tmp_path / "journal"
     global_journal = journal_dir / "global" / "journal.md"
     global_journal.parent.mkdir(parents=True)
-    global_journal.write_text("## [2025-10-06 14:30:00] insight\n\nSome content\n\n---\n")
+    global_journal.write_text("## [2025-10-06T14:30:00Z] insight\n\nSome content\n\n---\n")
 
     monkeypatch.setattr("claude_journal.server.get_journals_dir", lambda: journal_dir)
 

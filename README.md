@@ -20,6 +20,13 @@ Journals are stored in `~/.claude/journal/` as a git repository, providing backu
 - **Structured entries**: Five entry types (insight, failure, decision, preference, todo)
 - **Powerful search**: Search journals by content and type
 
+## Requirements
+
+- Python 3.12 or later
+- SQLite 3.9.0 or later (for FTS5 full-text search, bundled with Python 3.6+)
+- Git (for journal version control and sync)
+- uv (for installation)
+
 ## Installation
 
 ```bash
