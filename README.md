@@ -1,3 +1,6 @@
+[![codecov](https://codecov.io/gh/Ch00k/claude-journal/graph/badge.svg?token=a8iDciRD0f)](https://codecov.io/gh/Ch00k/claude-journal) &nbsp;
+[![PyPI - Version](https://img.shields.io/pypi/v/claude-journal)](https://pypi.org/project/claude-journal)
+
 # Claude Journal
 
 An MCP (Model Context Protocol) server that provides journaling capabilities for Claude Code, allowing Claude to persist
