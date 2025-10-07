@@ -92,14 +92,18 @@ Subsequent writes in that project use the same ID, even if you rename the direct
 
 ### Entry Format
 
+Entries are stored in markdown format:
+
 ```markdown
-## [2025-10-06 14:23:45] insight
+## [2025-10-06T14:23:45Z] insight
 
 Content goes here.
 Multiple lines supported.
 
 ---
 ```
+
+Each journal directory includes a `journal.db` SQLite database with an FTS5 (Full-Text Search) index for fast searching. The index is automatically created and updated as entries are written, and automatically rebuilt if the markdown file is modified outside the tool.
 
 ## Usage
 
@@ -150,7 +154,7 @@ Claude Journal provides two MCP tools:
 ### JournalSearch
 
 **Parameters**:
-- `query` (string, required) - Text or regex pattern to search for
+- `query` (string, required) - FTS5 full-text search query (supports phrases in quotes, AND/OR/NOT operators, prefix matching with *)
 - `scope` (enum, optional, default: both) - One of: global, project, both
 - `type` (enum, optional) - Filter by entry type if specified
 
@@ -160,9 +164,11 @@ Claude Journal provides two MCP tools:
 ~/.claude/journal/              # Git repository
 ├── .git/
 ├── global/
-│   └── journal.md              # Global journal
+│   ├── journal.md              # Global journal
+│   └── journal.db              # SQLite FTS5 search index
 └── <project-id>/
-    └── journal.md              # Per-project journal
+    ├── journal.md              # Per-project journal
+    └── journal.db              # SQLite FTS5 search index
 
 <your-project>/.claude/
 └── journal.json                # {"id": "a3f8b2c9"}

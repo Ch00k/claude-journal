@@ -271,6 +271,39 @@ New entry
     assert result[0] == "decision"
 
 
+def test_rebuild_index_recovers_from_corrupted_database(tmp_path: Path) -> None:
+    """Test that rebuild_index can recover from a corrupted database file."""
+    import sqlite3
+
+    journal_path = tmp_path / "journal.md"
+    index_path = tmp_path / "journal.db"
+
+    markdown = """## [2025-10-06T14:30:00Z] insight
+
+Test entry
+
+---
+"""
+    journal_path.write_text(markdown)
+
+    # Create a corrupted database file (exists but missing schema)
+    conn = sqlite3.connect(index_path)
+    conn.execute("CREATE TABLE dummy (id INTEGER)")
+    conn.commit()
+    conn.close()
+
+    # Rebuild should recover and create proper schema
+    rebuild_index(journal_path, index_path)
+
+    # Verify the index works correctly
+    conn = sqlite3.connect(index_path)
+    cursor = conn.execute("SELECT COUNT(*) FROM entries")
+    count = cursor.fetchone()[0]
+    conn.close()
+
+    assert count == 1
+
+
 def test_search_index_returns_empty_for_missing_index(tmp_path: Path) -> None:
     """Test that search_index returns empty list if index doesn't exist."""
     index_path = tmp_path / "journal.db"
