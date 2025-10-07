@@ -6,7 +6,7 @@ lint:
 	uv run mypy --config-file pyproject.toml src/ tests/
 
 test:
-	uv run pytest -s -vvv tests/
+	uv run pytest -s -vvv --cov --cov-branch --cov-report=xml tests/
 
 release-patch:
 	./release.sh patch
