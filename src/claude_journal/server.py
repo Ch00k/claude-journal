@@ -2,7 +2,6 @@
 # ABOUTME: for Claude Code to persist and retrieve journal entries across conversations.
 
 import asyncio
-import re
 from pathlib import Path
 
 from mcp.server import Server
@@ -15,7 +14,6 @@ from claude_journal.journal import (
     get_journals_dir,
     get_or_create_project_id,
     get_project_journal_path,
-    read_journal,
     resolve_journal_path,
 )
 
@@ -184,8 +182,10 @@ async def handle_journal_write(arguments: dict) -> list[TextContent]:  # noqa: P
     ]
 
 
-async def handle_journal_search(arguments: dict) -> list[TextContent]:  # noqa: PLR0912
+async def handle_journal_search(arguments: dict) -> list[TextContent]:
     """Handle JournalSearch tool call."""
+    from claude_journal.index import ensure_index, search_index
+
     query = arguments["query"]
     scope = arguments.get("scope", "both")
     entry_type = arguments.get("type")
@@ -224,48 +224,20 @@ async def handle_journal_search(arguments: dict) -> list[TextContent]:  # noqa: 
                 )
             ]
 
-    # Validate regex pattern
-    try:
-        pattern = re.compile(query, re.IGNORECASE)
-    except re.error as e:
-        return [
-            TextContent(
-                type="text",
-                text=f"Error: Invalid regex pattern '{query}': {e}",
-            )
-        ]
-
-    # Search journals with result limit to handle large files
+    # Search using FTS5 index
     max_results = 200
-    results = []
+    results: list[str] = []
 
     for journal_path in journals_to_search:
-        content = read_journal(journal_path)
-        if not content:
+        if not journal_path.exists():
             continue
 
-        # Parse entries
-        entries = content.split("\n---\n")
-        for entry in entries:
-            if not entry.strip():
-                continue
+        # Ensure index is up to date
+        index_path = ensure_index(journal_path)
 
-            # Check if entry matches query
-            if not pattern.search(entry):
-                continue
-
-            # Check if entry matches type filter
-            if entry_type:
-                # Extract type from header: ## [YYYY-MM-DD HH:MM:SS] type
-                header_match = re.search(r"## \[.*?\] (\w+)", entry)
-                if not header_match or header_match.group(1) != entry_type:
-                    continue
-
-            results.append(entry.strip())
-
-            # Limit results to prevent overwhelming output
-            if len(results) >= max_results:
-                break
+        # Search index
+        index_results = search_index(index_path, query, entry_type, max_results - len(results))
+        results.extend(index_results)
 
         if len(results) >= max_results:
             break
@@ -280,16 +252,10 @@ async def handle_journal_search(arguments: dict) -> list[TextContent]:  # noqa: 
             )
         ]
 
-    # Sort results by timestamp (newest first)
-    def extract_timestamp(entry: str) -> str:
-        match = re.search(r"## \[(.*?)\]", entry)
-        return match.group(1) if match else ""
-
-    results.sort(key=extract_timestamp, reverse=True)
-
+    # Results are already sorted by relevance from FTS5
     result_text = f"Found {len(results)} matching entries"
     if len(results) >= max_results:
-        result_text += f" (limited to {max_results} most recent)"
+        result_text += f" (limited to {max_results} most relevant)"
     result_text += ":\n\n" + "\n\n---\n\n".join(results)
 
     return [

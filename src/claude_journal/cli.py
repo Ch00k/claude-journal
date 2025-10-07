@@ -31,12 +31,16 @@ def init_command(remote_url: str | None) -> bool:
     global_journal.parent.mkdir(parents=True, exist_ok=True)
     global_journal.touch()
 
+    print("Creating .gitignore")
+    gitignore = journal_dir / ".gitignore"
+    gitignore.write_text("*.db\n*.db-wal\n*.db-shm\n")
+
     if remote_url:
         print(f"Adding remote: {remote_url}")
         repo.create_remote("origin", remote_url)
 
     print("Creating initial commit")
-    repo.index.add([str(global_journal)])
+    repo.index.add([str(global_journal), str(gitignore)])
     repo.index.commit("Initialize journal repository")
 
     if remote_url:
