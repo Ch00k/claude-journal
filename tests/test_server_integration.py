@@ -25,7 +25,7 @@ async def test_journal_write_project_scope_first_write(tmp_path: Path, monkeypat
     monkeypatch.setattr("claude_journal.journal.get_journals_dir", lambda: journal_dir)
     monkeypatch.setattr("claude_journal.server.Path.cwd", lambda: project_dir)
 
-    arguments = {"content": "First project entry", "type": "insight", "scope": "project"}
+    arguments = {"content": "Implemented caching layer for improved performance", "type": "insight", "scope": "project"}
 
     result = await handle_journal_write(arguments)
 
@@ -46,7 +46,11 @@ async def test_journal_write_global_scope(tmp_path: Path, monkeypatch: pytest.Mo
     monkeypatch.setattr("claude_journal.server.get_journals_dir", lambda: journal_dir)
     monkeypatch.setattr("claude_journal.journal.get_journals_dir", lambda: journal_dir)
 
-    arguments = {"content": "Global entry", "type": "preference", "scope": "global"}
+    arguments = {
+        "content": "User prefers explicit error handling over exceptions",
+        "type": "preference",
+        "scope": "global",
+    }
 
     result = await handle_journal_write(arguments)
 
@@ -55,7 +59,7 @@ async def test_journal_write_global_scope(tmp_path: Path, monkeypatch: pytest.Mo
     global_journal = journal_dir / "global" / "journal.md"
     assert global_journal.exists()
     content = global_journal.read_text()
-    assert "Global entry" in content
+    assert "User prefers explicit error handling" in content
     assert "preference" in content
 
 
@@ -158,7 +162,7 @@ async def test_journal_write_handles_git_not_initialized(tmp_path: Path, monkeyp
 
     monkeypatch.setattr("claude_journal.server.get_journals_dir", lambda: journal_dir)
 
-    arguments = {"content": "Test entry", "type": "insight", "scope": "global"}
+    arguments = {"content": "Refactored module for better maintainability", "type": "insight", "scope": "global"}
 
     result = await handle_journal_write(arguments)
 
