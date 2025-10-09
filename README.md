@@ -66,7 +66,10 @@ To make Claude use the journal effectively, add instructions to your `~/.claude/
 - Before starting complex tasks, search the journal for relevant past experiences and lessons learned
 - Document architectural decisions and their outcomes for future reference
 - Track patterns in user feedback to improve collaboration over time
-- When you notice something that should be fixed but is unrelated to your current task, document it in your journal rather than fixing it immediately
+- When you notice something that should be fixed but is unrelated to your current task, document it in your journal
+  rather than fixing it immediately
+- You MAY include secrets in your journal entries, but you MUST redact actual secret values. Replace secret value with
+  [REDACTED] or a similar placeholder.
 ```
 
 You can also add project-specific journal instructions in `<project>/.claude/CLAUDE.md` if needed.

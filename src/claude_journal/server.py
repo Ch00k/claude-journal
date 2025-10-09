@@ -26,7 +26,11 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="JournalWrite",
-            description="Write an entry to the journal. Entries are persisted across conversations.",
+            description=(
+                "Write an entry to the journal. Entries are persisted across conversations. "
+                "You MAY include secrets, but you MUST redact actual secret values. "
+                "Replace secret value with [REDACTED] or a similar placeholder."
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {

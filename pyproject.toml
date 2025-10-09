@@ -10,7 +10,6 @@ requires-python = ">=3.12"
 dependencies = [
     "mcp>=1.16.0",
     "gitpython>=3.1.45",
-    "pytest-cov>=7.0.0",
 ]
 
 [project.scripts]
@@ -21,6 +20,7 @@ dev = [
     "mypy>=1.18.2",
     "pytest>=8.4.2",
     "pytest-asyncio>=0.25.2",
+    "pytest-cov>=7.0.0",
     "ruff>=0.13.3",
 ]
 
